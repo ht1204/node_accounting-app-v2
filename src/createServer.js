@@ -3,7 +3,6 @@
 const express = require('express');
 
 function createServer() {
-  // Use express to create a server
   const app = express();
 
   app.use(express.json());
@@ -13,7 +12,7 @@ function createServer() {
   let userIdCounter = 1;
   let expenseIdCounter = 1;
 
-  // Add a routes to the server
+  /** ---------------- USERS ---------------- */
   app.post('/users', (req, res) => {
     const { name } = req.body;
 
@@ -24,7 +23,6 @@ function createServer() {
     const user = { id: userIdCounter++, name };
 
     users.push(user);
-
     res.status(201).json(user);
   });
 
@@ -94,7 +92,6 @@ function createServer() {
 
   app.get('/expenses', (req, res) => {
     let results = [...expenses];
-
     const { userId, from, to, categories } = req.query;
 
     if (userId) {
@@ -129,7 +126,6 @@ function createServer() {
     if (!expense) {
       return res.status(404).json({ message: 'Expense not found' });
     }
-
     Object.assign(expense, req.body);
     res.json(expense);
   });
@@ -144,10 +140,7 @@ function createServer() {
     res.status(204).end();
   });
 
-  // Return the server (express app)
   return app;
 }
 
-module.exports = {
-  createServer,
-};
+module.exports = { createServer };
