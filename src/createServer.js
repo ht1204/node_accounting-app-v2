@@ -21,18 +21,21 @@ function createServer() {
       return res.status(400).json({ message: 'Name is required' });
     }
 
-    const user = { id: userIdCounter++, name };
+    const user = {
+      id: userIdCounter++,
+      name,
+    };
 
     users.push(user);
-
     res.status(201).json(user);
   });
 
-  app.get('/users', (req, res) => res.json(users));
+  app.get('/users', (req, res) => {
+    res.json(users);
+  });
 
   app.get('/users/:id', (req, res) => {
-    const userId = Number(req.params.id);
-    const user = users.find((u) => u.id === userId);
+    const user = users.find((u) => u.id === parseInt(req.params.id));
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -42,8 +45,7 @@ function createServer() {
   });
 
   app.patch('/users/:id', (req, res) => {
-    const userId = Number(req.params.id);
-    const user = users.find((u) => u.id === userId);
+    const user = users.find((u) => u.id === parseInt(req.params.id));
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -60,8 +62,7 @@ function createServer() {
   });
 
   app.delete('/users/:id', (req, res) => {
-    const userId = Number(req.params.id);
-    const index = users.findIndex((u) => u.id === userId);
+    const index = users.findIndex((u) => u.id === parseInt(req.params.id));
 
     if (index === -1) {
       return res.status(404).json({ message: 'User not found' });
@@ -75,10 +76,12 @@ function createServer() {
   app.post('/expenses', (req, res) => {
     const { userId, spentAt, title, amount, category, note } = req.body;
 
+    // Check required fields
     if (!userId || !spentAt || !title || amount == null || !category) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
+    // Check if user exists
     const user = users.find((u) => u.id === userId);
 
     if (!user) {
@@ -92,38 +95,47 @@ function createServer() {
       title,
       amount,
       category,
-      note,
+      note: note || null,
     };
 
     expenses.push(expense);
-
     res.status(201).json(expense);
   });
 
   app.get('/expenses', (req, res) => {
-    let results = [...expenses];
-    const { userId, from, to, categories } = req.query;
+    let filteredExpenses = [...expenses];
 
-    if (userId) {
-      results = results.filter((e) => e.userId === Number(userId));
+    // Filter by userId if provided
+    if (req.query.userId) {
+      const userId = parseInt(req.query.userId);
+
+      filteredExpenses = filteredExpenses.filter((e) => e.userId === userId);
     }
 
-    if (from && to) {
-      results = results.filter((e) => e.spentAt >= from && e.spentAt <= to);
+    // Filter by category if provided
+    if (req.query.categories) {
+      filteredExpenses = filteredExpenses.filter(
+        (e) => e.category === req.query.categories,
+      );
     }
 
-    if (categories) {
-      const cats = categories.split(',');
+    // Filter by date range if provided
+    if (req.query.from && req.query.to) {
+      const from = new Date(req.query.from);
+      const to = new Date(req.query.to);
 
-      results = results.filter((e) => cats.includes(e.category));
+      filteredExpenses = filteredExpenses.filter((e) => {
+        const spentDate = new Date(e.spentAt);
+
+        return spentDate >= from && spentDate <= to;
+      });
     }
 
-    res.json(results);
+    res.json(filteredExpenses);
   });
 
   app.get('/expenses/:id', (req, res) => {
-    const expenseId = Number(req.params.id);
-    const expense = expenses.find((e) => e.id === expenseId);
+    const expense = expenses.find((e) => e.id === parseInt(req.params.id));
 
     if (!expense) {
       return res.status(404).json({ message: 'Expense not found' });
@@ -133,22 +145,31 @@ function createServer() {
   });
 
   app.patch('/expenses/:id', (req, res) => {
-    const expenseId = Number(req.params.id);
-    const expense = expenses.find((e) => e.id === expenseId);
+    const expense = expenses.find((e) => e.id === parseInt(req.params.id));
 
     if (!expense) {
       return res.status(404).json({ message: 'Expense not found' });
     }
 
-    const { title, spentAt, amount, category, note, userId } = req.body;
+    const { userId, spentAt, title, amount, category, note } = req.body;
 
-    // Apply only provided fields (partial update)
-    if (title !== undefined) {
-      expense.title = title;
+    // If userId is provided, check if user exists
+    if (userId !== undefined) {
+      const user = users.find((u) => u.id === userId);
+
+      if (!user) {
+        return res.status(400).json({ message: 'User not found' });
+      }
+      expense.userId = userId;
     }
 
+    // Update other fields if provided
     if (spentAt !== undefined) {
       expense.spentAt = spentAt;
+    }
+
+    if (title !== undefined) {
+      expense.title = title;
     }
 
     if (amount !== undefined) {
@@ -163,16 +184,11 @@ function createServer() {
       expense.note = note;
     }
 
-    if (userId !== undefined) {
-      expense.userId = userId;
-    }
-
     res.json(expense);
   });
 
   app.delete('/expenses/:id', (req, res) => {
-    const expenseId = Number(req.params.id);
-    const index = expenses.findIndex((e) => e.id === expenseId);
+    const index = expenses.findIndex((e) => e.id === parseInt(req.params.id));
 
     if (index === -1) {
       return res.status(404).json({ message: 'Expense not found' });
